@@ -7,5 +7,5 @@ node {
 
   stage 'Build image'
 
-  sh("docker build -t ${imageTag} .")
+  sh("echo 'test'")
 }
