@@ -13,9 +13,8 @@ node {
 
 podTemplate(label: 'mypod', containers: [
     containerTemplate(name: 'golang', image: 'golang:1.6.3-alpine', ttyEnabled: true, command: 'cat')
-  ],
-  {
-
+  ])
+{
     node ('mypod') {
         stage 'Get a Golang project'
         container('golang') {
