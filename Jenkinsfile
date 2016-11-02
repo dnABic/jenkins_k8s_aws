@@ -5,7 +5,7 @@ node {
 
   checkout scm
 
-  stage 'Build image' {
-    sh("docker build -t ${imageTag} .")
-  }
+  stage 'Build image'
+
+  sh("docker build -t ${imageTag} .")
 }
