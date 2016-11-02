@@ -43,13 +43,14 @@ type Instance struct {
 	Error      string
 }
 
-const version string = "1.0.0"
+const version string = "1.0.1"
 
 func main() {
 	showversion := flag.Bool("version", false, "display version")
 	frontend := flag.Bool("frontend", false, "run in frontend mode")
 	port := flag.Int("port", 8080, "port to bind")
 	backend := flag.String("backend-service", "http://127.0.0.1:8081", "hostname of backend server")
+	provider := flag.String("provider", "aws", "gce or aws cloud provider")
 	flag.Parse()
 
 	if *showversion {
@@ -64,15 +65,15 @@ func main() {
 	if *frontend {
 		frontendMode(*port, *backend)
 	} else {
-		backendMode(*port)
+		backendMode(*port, *provider)
 	}
 
 }
 
-func backendMode(port int) {
+func backendMode(port int, provider string) {
 	log.Println("Operating in backend mode...")
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		i := newInstance()
+		i := newInstance(provider)
 		raw, _ := httputil.DumpRequest(r, true)
 		i.LBRequest = string(raw)
 		resp, _ := json.Marshal(i)
@@ -151,25 +152,45 @@ func (a *assigner) assign(getVal func() (string, error)) string {
 	return s
 }
 
-func newInstance() *Instance {
+func awsInfo(instance *Instance) {
+	instance.Id = "this is my id"
+	instance.Zone = "this is my zone"
+	instance.Name = "this is my name"
+	instance.Hostname = "this is sparta"
+	instance.Project = "this is my project"
+	instance.InternalIP = "this is internal ip"
+	instance.ExternalIP = "this is external ip"
+	instance.Version = version
+
+}
+
+func gceInfo(instance *Instance) {
+	a := &assigner{}
+	instance.Id = a.assign(metadata.InstanceID)
+	instance.Zone = a.assign(metadata.Zone)
+	instance.Name = a.assign(metadata.InstanceName)
+	instance.Hostname = a.assign(metadata.Hostname)
+	instance.Project = a.assign(metadata.ProjectID)
+	instance.InternalIP = a.assign(metadata.InternalIP)
+	instance.ExternalIP = a.assign(metadata.ExternalIP)
+	instance.Version = version
+
+	if a.err != nil {
+		instance.Error = a.err.Error()
+	}
+}
+
+func newInstance(provider string) *Instance {
 	var i = new(Instance)
-	if !metadata.OnGCE() {
-		i.Error = "Not running on GCE"
+	if metadata.OnGCE() {
+		gceInfo(i)
+		return i
+	} else if provider == "aws" {
+		awsInfo(i)
+		return i
+	} else {
+		i.Error = "Unknown cloud provider"
 		return i
 	}
 
-	a := &assigner{}
-	i.Id = a.assign(metadata.InstanceID)
-	i.Zone = a.assign(metadata.Zone)
-	i.Name = a.assign(metadata.InstanceName)
-	i.Hostname = a.assign(metadata.Hostname)
-	i.Project = a.assign(metadata.ProjectID)
-	i.InternalIP = a.assign(metadata.InternalIP)
-	i.ExternalIP = a.assign(metadata.ExternalIP)
-	i.Version = version
-
-	if a.err != nil {
-		i.Error = a.err.Error()
-	}
-	return i
 }
